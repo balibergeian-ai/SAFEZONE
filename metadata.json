@@ -1,0 +1,6 @@
+{
+  "name": "SafeZone",
+  "description": "A real-time, campus-specific emergency alert and disaster response platform for university communities.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": []
+}

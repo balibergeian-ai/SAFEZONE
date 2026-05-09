@@ -1,0 +1,101 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["ADMIN", "STAFF", "STUDENT", "STAKEHOLDER"] },
+        "campusId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Alert": {
+      "title": "Emergency Alert",
+      "description": "Real-time emergency alert details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["EMERGENCY", "WEATHER", "EARTHQUAKE", "DRILL", "INFO"] },
+        "severity": { "type": "string", "enum": ["CRITICAL", "WARNING", "MODERATE", "LOW"] },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "object" },
+        "campusId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "severity", "title", "description", "campusId", "authorId", "isActive"]
+    },
+    "Guidance": {
+      "title": "Safety Guidance",
+      "description": "Campus-specific evacuation and safety instructions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "campusId": { "type": "string" },
+        "category": { "type": "string", "enum": ["EVACUATION", "SHELTER_IN_PLACE", "FIRST_AID", "CONTACTS"] },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "mapUrl": { "type": "string" }
+      },
+      "required": ["campusId", "category", "title", "content"]
+    },
+    "Campus": {
+      "title": "Campus Location",
+      "description": "Details about university campus locations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "object" },
+        "address": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Assessment": {
+      "title": "Alert Assessment",
+      "description": "User assessment of alert effectiveness for benchmarking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "alertId": { "type": "string" },
+        "channelType": { "type": "string", "enum": ["SAFEZONE", "GOVERNMENT", "WEATHER_APP", "SMS", "SOCIAL_MEDIA"] },
+        "rating": { "type": "integer" },
+        "comment": { "type": "string" },
+        "receivedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "alertId", "channelType", "rating"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "User report for inappropriate content or users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["ALERT", "USER"] },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "targetId", "targetType", "reason", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "Global user profiles" },
+    "alerts": { "schema": "Alert", "description": "Active and past emergency alerts" },
+    "guidance": { "schema": "Guidance", "description": "Safety and evacuation guidance articles" },
+    "campuses": { "schema": "Campus", "description": "University campus metadata" },
+    "assessments": { "schema": "Assessment", "description": "Benchmarking data for alert effectiveness" },
+    "reports": { "schema": "Report", "description": "User feedback and incident reports" }
+  }
+}

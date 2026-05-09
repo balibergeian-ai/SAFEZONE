@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'balibergeian@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isStaff() {
+      return isAdmin() || (isSignedIn() && getUserData().role == 'STAFF');
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Entity Validations ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.email == request.auth.token.email &&
+             data.role in ['ADMIN', 'STAFF', 'STUDENT', 'STAKEHOLDER'] &&
+             data.uid is string && data.email is string;
+    }
+
+    function isValidAlert(data) {
+      return data.keys().hasAll(['type', 'severity', 'title', 'description', 'campusId', 'authorId', 'isActive', 'createdAt', 'updatedAt']) &&
+             data.type in ['EMERGENCY', 'WEATHER', 'EARTHQUAKE', 'DRILL', 'INFO'] &&
+             data.severity in ['CRITICAL', 'WARNING', 'MODERATE', 'LOW'] &&
+             data.title is string && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.authorId == request.auth.uid &&
+             data.createdAt == request.time &&
+             data.updatedAt == request.time;
+    }
+
+    function isValidAssessment(data) {
+      return data.keys().hasAll(['userId', 'alertId', 'channelType', 'rating']) &&
+             data.userId == request.auth.uid &&
+             data.channelType in ['SAFEZONE', 'GOVERNMENT', 'WEATHER_APP', 'SMS', 'SOCIAL_MEDIA'] &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5;
+    }
+
+    function isValidReport(data) {
+      return data.keys().hasAll(['reporterId', 'targetId', 'targetType', 'reason', 'createdAt']) &&
+             data.reporterId == request.auth.uid &&
+             data.targetType in ['ALERT', 'USER'] &&
+             data.reason is string && data.reason.size() > 0 && data.reason.size() <= 1000 &&
+             data.createdAt == request.time;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && 
+                      request.resource.data.role == resource.data.role && // Cannot change own role
+                      request.resource.data.uid == resource.data.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'campusId', 'updatedAt']);
+    }
+
+    match /alerts/{alertId} {
+      allow get: if true; // Public safety
+      allow list: if true;
+      allow create: if isStaff() && isValidAlert(request.resource.data);
+      allow update: if isStaff() && 
+                      request.resource.data.authorId == resource.data.authorId &&
+                      (
+                        // Action: Toggle Active
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isActive', 'updatedAt']) ||
+                        // Action: Edit Title/Desc
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'severity', 'updatedAt'])
+                      );
+      allow delete: if isAdmin();
+    }
+
+    match /guidance/{guidanceId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /campuses/{campusId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /assessments/{assessmentId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isSignedIn() && isValidAssessment(request.resource.data);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && isValidReport(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
